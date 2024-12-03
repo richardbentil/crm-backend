@@ -63,12 +63,6 @@ io.on("connection", (socket) => {
     io.to(taskData.taskId).emit("taskUpdated", taskData);
   });
 
-  // Handle disconnections
-  socket.on("disconnect", () => {
-    console.log("User disconnected");
-  });
-
-
   socket.on("joinRoom", (room) => {
     socket.join(room);
     console.log(`User joined room: ${room}`);
@@ -78,8 +72,9 @@ io.on("connection", (socket) => {
     io.to(data.room).emit("message", data);
   });
 
+  // Handle disconnections
   socket.on("disconnect", () => {
-    console.log("A user disconnected");
+    console.log("User disconnected");
   });
 });
 
