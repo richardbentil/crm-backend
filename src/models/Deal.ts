@@ -7,6 +7,8 @@ const dealSchema = new mongoose.Schema(
     stage: { type: String, enum: ["Lead", "Opportunity", "Won", "Lost"], default: "Lead" },
     owner: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+    teamMembers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User"}],
+    notes: [{ type: mongoose.Schema.Types.ObjectId, ref: "Note"}],
     tasks: [{ type: mongoose.Schema.Types.ObjectId, ref: "Task" }],
     attachments: [
       {

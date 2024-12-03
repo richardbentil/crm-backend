@@ -15,9 +15,10 @@ import emailRoutes from "./routes/emailRoutes";
 import reportRoutes from "./routes/reportRoutes";
 import userRoutes from "./routes/userRoutes";
 import importExportRoutes from "./routes/importExportRoutes";
-import paymentRoutes from "./routes/payments";
+import paymentRoutes from "./routes/paymentsRoutes";
 import emailTemplateRoutes from "./routes/EmailTemplateRoutes";
 import noteRoutes from "./routes/noteRoutes";
+import messagesRoutes from "./routes/chatMessageRoute";
 
 
 const app = express();
@@ -66,6 +67,20 @@ io.on("connection", (socket) => {
   socket.on("disconnect", () => {
     console.log("User disconnected");
   });
+
+
+  socket.on("joinRoom", (room) => {
+    socket.join(room);
+    console.log(`User joined room: ${room}`);
+  });
+
+  socket.on("message", (data) => {
+    io.to(data.room).emit("message", data);
+  });
+
+  socket.on("disconnect", () => {
+    console.log("A user disconnected");
+  });
 });
 
 // Serve Swagger UI at /api-docs
@@ -83,6 +98,7 @@ app.use("/api/data", importExportRoutes);
 app.use("/api/payment", paymentRoutes);
 app.use("/api/email-template", emailTemplateRoutes);
 app.use("/api/notes", noteRoutes);
+app.use("/api/messages", messagesRoutes);
 
 // Start the server
 server.listen(PORT, () => {

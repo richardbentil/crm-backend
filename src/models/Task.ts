@@ -1,22 +1,21 @@
-const mongoose = require("mongoose");
+import mongoose from "mongoose";
 
-const taskSchema = new mongoose.Schema(
-  {
-    title: { type: String, required: true },
-    description: { type: String },
-    deadline: { type: Date, required: true },
-    status: { type: String, enum: ["Pending", "Completed"], default: "Pending" },
-    assignedTo: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
-    notes: { type: String },
-    createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
-  },
-  { timestamps: true }
-);
+const TaskSchema = new mongoose.Schema({
+  dealId: { type: String, required: true },
+  tasks: [
+    {
+      title: { type: String, required: true },
+      description: { type: String },
+      deadline: { type: Date },
+      status: { type: String, enum: ["pending", "in-progress", "completed"], default: "pending" },
+      createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+      assignedTo: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+      notes: [{ type: mongoose.Schema.Types.ObjectId, ref: "Note"}],
+      createdAt: { type: Date, default: Date.now },
+    },
+  ],
+});
 
-// Indexing for faster querying on dueDate and assignedTo
-taskSchema.index({ dueDate: 1 });
-taskSchema.index({ assignedTo: 1 });
-taskSchema.index({ status: 1 });
+const Task = mongoose.model("Task", TaskSchema);
 
-const Task = mongoose.model("Task", taskSchema);
 export default Task;

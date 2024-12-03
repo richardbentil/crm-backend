@@ -6,7 +6,7 @@ const router = express.Router();
 
 router.post("/", protect, createNote);
 router.get("/", protect, getNote);
-router.patch("/:id", protect, updateNote);
-router.delete("/:id", protect, deleteNote);
+router.patch("/", protect, updateNote);
+router.delete("/", protect, deleteNote);
 
 export default router;

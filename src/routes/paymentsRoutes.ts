@@ -1,6 +1,4 @@
 import express from "express";
-
-import User from "../models/User";
 import authMiddleware from "../middlewares/authMiddleware";
 import { cancel, checkout, invoices, subscriptions, updateSubscription, webhook } from "../controllers/payment";
 
