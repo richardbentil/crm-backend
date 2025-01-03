@@ -1,0 +1,203 @@
+openapi: 3.0.0
+info:
+  title: User Management API
+  description: API for managing users, including registration, login, and updating user or company details.
+  version: 1.0.0
+servers:
+  - url: http://localhost:5000/api/v1
+    description: Development server
+paths:
+  /auth/register:
+    post:
+      summary: Register a new user
+      description: Creates a new user in the system.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  example: John Doe
+                email:
+                  type: string
+                  example: john.doe@example.com
+                password:
+                  type: string
+                  example: password123
+      responses:
+        "201":
+          description: User registered successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: User registered
+                  user:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      name:
+                        type: string
+                      email:
+                        type: string
+        "400":
+          description: Bad request. Validation errors or missing data.
+  /auth/login:
+    post:
+      summary: Login an existing user
+      description: Authenticates a user and returns a JWT token.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  example: john.doe@example.com
+                password:
+                  type: string
+                  example: password123
+      responses:
+        "200":
+          description: Login successful.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Login successful
+                  token:
+                    type: string
+                  user:
+                    type: object
+                    properties:
+                      name:
+                        type: string
+                      email:
+                        type: string
+                      role:
+                        type: string
+                      subscriptionPlan:
+                        type: string
+                      planDetails:
+                        type: object
+        "400":
+          description: Invalid credentials or bad request.
+        "404":
+          description: User not found.
+  /users/{id}:
+    put:
+      summary: Update a user
+      description: Updates a user's details. Restricted to admin users.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                email:
+                  type: string
+                role:
+                  type: string
+                company:
+                  type: string
+      responses:
+        "200":
+          description: User updated successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Updated successful
+                  token:
+                    type: string
+                  user:
+                    type: object
+                    properties:
+                      name:
+                        type: string
+                      email:
+                        type: string
+                      role:
+                        type: string
+                      subscriptionPlan:
+                        type: string
+                      planDetails:
+                        type: object
+        "404":
+          description: User not found.
+        "500":
+          description: Internal server error.
+  /users/{id}/company:
+    put:
+      summary: Update a user's company information
+      description: Updates the company details of a user.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  example: Acme Corp
+                email:
+                  type: string
+                  example: contact@acme.com
+                address:
+                  type: string
+                  example: 123 Acme St, Springfield
+      responses:
+        "200":
+          description: Company data updated successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Company data updated successfully
+                  company:
+                    type: object
+                    properties:
+                      name:
+                        type: string
+                      email:
+                        type: string
+                      address:
+                        type: string
+        "404":
+          description: User not found.
+        "500":
+          description: Internal server error.

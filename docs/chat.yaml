@@ -1,0 +1,91 @@
+openapi: 3.0.0
+info:
+  title: Chat Messaging API
+  description: API for saving and retrieving chat messages in specific chat rooms.
+  version: 1.0.0
+servers:
+  - url: http://localhost:5000/api/v1
+    description: Development server
+paths:
+  /chat/messages:
+    post:
+      summary: Save a chat message
+      description: Adds a new message to a specific chat room. If the room does not exist, it creates a new one.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                room:
+                  type: string
+                  description: The unique identifier of the chat room.
+                  example: room123
+                message:
+                  type: string
+                  description: The message text to be saved.
+                  example: Hello, how are you?
+      responses:
+        "201":
+          description: Message saved successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  room:
+                    type: string
+                    example: room123
+                  messages:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        sender:
+                          type: string
+                          description: User ID of the message sender.
+                        text:
+                          type: string
+                          description: The text of the message.
+        "500":
+          description: Internal server error.
+  /chat/messages/{room}:
+    get:
+      summary: Retrieve messages for a chat room
+      description: Fetches all messages for a specific chat room.
+      parameters:
+        - name: room
+          in: path
+          required: true
+          schema:
+            type: string
+            example: room123
+          description: The unique identifier of the chat room.
+      responses:
+        "200":
+          description: List of messages retrieved successfully.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    sender:
+                      type: object
+                      properties:
+                        name:
+                          type: string
+                          description: Name of the message sender.
+                        email:
+                          type: string
+                          description: Email of the message sender.
+                    text:
+                      type: string
+                      description: The text of the message.
+                      example: Hello, how are you?
+        "404":
+          description: No messages found for the specified room.
+        "500":
+          description: Internal server error.

@@ -1,0 +1,172 @@
+openapi: 3.0.0
+info:
+  title: Contact Management API
+  description: API for creating, retrieving, updating, and deleting contacts.
+  version: 1.0.0
+servers:
+  - url: http://localhost:5000/api/v1
+    description: Development server
+paths:
+  /contacts:
+    post:
+      summary: Create a new contact
+      description: Adds a new contact to the user's contact list.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  description: Full name of the contact.
+                  example: John Doe
+                email:
+                  type: string
+                  description: Email address of the contact.
+                  example: john.doe@example.com
+                phone:
+                  type: string
+                  description: Phone number of the contact.
+                  example: "+1234567890"
+                company:
+                  type: string
+                  description: Company name associated with the contact.
+                  example: Acme Corp
+                notes:
+                  type: string
+                  description: Additional notes about the contact.
+                  example: Met at the Tech Conference 2023.
+      responses:
+        "201":
+          description: Contact created successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Contact created successfully
+                  contact:
+                    type: object
+        "400":
+          description: Bad request.
+    get:
+      summary: Retrieve contacts
+      description: Fetches a paginated list of contacts created by the authenticated user.
+      parameters:
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            example: 1
+          description: Page number for pagination.
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            example: 10
+          description: Number of contacts per page.
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+            example: John
+          description: Search term for filtering contacts by name or company.
+      responses:
+        "200":
+          description: List of contacts retrieved successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  contacts:
+                    type: array
+                    items:
+                      type: object
+                  pagination:
+                    type: object
+                    properties:
+                      totalContacts:
+                        type: integer
+                      currentPage:
+                        type: integer
+                      totalPages:
+                        type: integer
+                      pageSize:
+                        type: integer
+        "400":
+          description: Bad request.
+
+  /contacts/{id}:
+    patch:
+      summary: Update a contact
+      description: Updates the details of a specific contact.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            example: 64d28fc4b1234c7890123456
+          description: The ID of the contact to be updated.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+              example:
+                name: Jane Doe
+                phone: "+1234567891"
+      responses:
+        "200":
+          description: Contact updated successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Contact updated successfully
+                  contact:
+                    type: object
+        "404":
+          description: Contact not found.
+        "400":
+          description: Bad request.
+
+    delete:
+      summary: Delete a contact
+      description: Deletes a specific contact by ID.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            example: 64d28fc4b1234c7890123456
+          description: The ID of the contact to be deleted.
+      responses:
+        "200":
+          description: Contact deleted successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Contact deleted successfully
+        "404":
+          description: Contact not found.
+        "400":
+          description: Bad request.

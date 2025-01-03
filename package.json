@@ -1,0 +1,52 @@
+{
+  "name": "crm-b",
+  "version": "1.0.0",
+  "description": "A CRM backend for small and medium businesses",
+  "keywords": [],
+  "homepage": "https://github.com/richardbentil/crm-backend#readme",
+  "bugs": {
+    "url": "https://github.com/richardbentil/crm-backend/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/richardbentil/crm-backend.git"
+  },
+  "license": "MIT",
+  "author": "Richard Bentil",
+  "type": "commonjs",
+  "main": "index.ts",
+  "scripts": {
+    "start": "node index.ts",
+    "dev": "nodemon index.ts",
+    "lint": "eslint.",
+    "lint:fix": "eslint. --fix",
+    "test": "jest"
+  },
+  "dependencies": {
+    "bcrypt": "^5.1.1",
+    "body-parser": "^1.20.3",
+    "cloudinary": "^2.5.1",
+    "compression": "^1.7.5",
+    "cors": "^2.8.5",
+    "csv-parser": "^3.1.0",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "express-rate-limit": "^7.5.0",
+    "fast-csv": "^5.0.2",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.9.2",
+    "multer": "^1.4.5-lts.1",
+    "nodemailer": "^6.9.16",
+    "socket.io": "^4.8.1",
+    "stripe": "^17.5.0",
+    "swagger-jsdoc": "^6.2.8",
+    "swagger-ui-express": "^5.0.1"
+  },
+  "devDependencies": {
+    "@types/compression": "^1.7.5",
+    "@types/express": "^5.0.0",
+    "jest": "^29.7.0",
+    "nodemon": "^3.1.9",
+    "ts-node": "^10.9.2"
+  }
+}
