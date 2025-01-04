@@ -38,9 +38,9 @@ const getUser = async (req, res) => {
 // Create a new user (Admin-only)
 const createUser = async (req, res) => {
   try {
-    const { name, email, password, role } = req.body;
+    const { name, email, phone, role } = req.body;
 
-    if (!name || !email || !password || !role) {
+    if (!name || !email || !phone || !role) {
       return res.status(400).json({ error: "All fields are required" });
     }
 
@@ -63,13 +63,12 @@ const createUser = async (req, res) => {
     // Send reset password email
     const emailResponse = await sendEmail(
       email,
-      "Password Reset Request",
-      "Reset your password",
+      "Team member",
+      "Added as a team member",
       `
-        <p>You requested a password reset.</p>
+        <p>You have been added as a team member on CRM Pro.</p>
         <p>Click the link below to reset your password:</p>
         <a href="${resetUrl}">Reset Password</a>
-        <p>If you did not request this, please ignore this email.</p>
       `
     );
 
@@ -81,7 +80,7 @@ const createUser = async (req, res) => {
     const organization = await Organization.findById(req?.user?.id)
 
 
-    const user = await User.create({ name, email, password, role, organizationId: organization?._id });
+    const user = await User.create({ name, email, phone, role, password: '', organizationId: organization?._id });
     res.status(201).json({ message: "User created successfully", user });
   } catch (err) {
     res.status(500).json({ error: err.message });
