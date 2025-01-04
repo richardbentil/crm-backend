@@ -4,13 +4,14 @@ import Note from "../models/Note";
 
 const createNote = async (req, res) => {
   try {
-    const { content, taskId } = req.body;
+    const { content, heading, taskId, dealId } = req.body;
 
     const updatedNote = await Note.findOneAndUpdate(
       { taskId },
       {
         $push: {
           notes: {
+            heading,
             content,
             createdBy: req.user.id,
           },

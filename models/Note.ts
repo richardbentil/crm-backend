@@ -4,6 +4,9 @@ const NoteSchema = new mongoose.Schema({
   taskId: { type: String, required: true }, // Unique identifier for each task
   notes: [
     {
+      heading: { type: String, required: true },
+      taskId: { type: String },
+      dealId: { type: String },
       content: { type: String, required: true },
       createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
       timestamp: { type: Date, default: Date.now },

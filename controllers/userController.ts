@@ -3,6 +3,8 @@ import User from "../models/User";
 import sendEmail from "../utils/emailService";
 import jwt from "jsonwebtoken";
 import Organization from "../models/Organization";
+import Task from "../models/Task";
+import Deal from "../models/Deal";
 
 // Get all users
 const getUsers = async (req, res) => {
@@ -107,6 +109,78 @@ const updateUser = async (req, res) => {
   }
 };
 
+const assignUser = async (req, res) => {
+  try {
+    const { userId, action, dealOrTaskId } = req.body;
+
+    if(action == "addToTask"){
+    await Task.findOneAndUpdate(
+      { _id: dealOrTaskId },
+      {
+        $push: {
+          assignees: {
+            userId
+          },
+        },
+      },
+      { new: true, upsert: true } // Create a document if it doesn't exist
+    );
+  } else {
+    await Deal.findOneAndUpdate(
+      { _id: dealOrTaskId },
+      {
+        $push: {
+          assignees: {
+            userId
+          },
+        },
+      },
+      { new: true, upsert: true } // Create a document if it doesn't exist
+    );
+  }
+
+    res.status(200).json({ message: "Assigned user successfully" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+const unAssignUser = async (req, res) => {
+  try {
+    const { userId, action, dealOrTaskId } = req.body;
+
+    if(action == "removeFromTask"){
+    await Task.findOneAndUpdate(
+      { _id: dealOrTaskId },
+      {
+        $pull: {
+          assignees: {
+            userId
+          },
+        },
+      },
+     
+    );
+  } else {
+    await Deal.findOneAndUpdate(
+      { _id: dealOrTaskId },
+      {
+        $pull: {
+          assignees: {
+            userId
+          },
+        },
+      },
+      
+    );
+  }
+
+  res.status(200).json({ message: "Unassigned user successfully" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 // Delete a user (Admin-only)
 const deleteUser = async (req, res) => {
   try {
@@ -122,4 +196,4 @@ const deleteUser = async (req, res) => {
   }
 };
 
-export { getUsers, getUser, createUser, updateUser, deleteUser };
+export { getUsers, getUser, createUser, updateUser, deleteUser, assignUser, unAssignUser };

@@ -55,6 +55,7 @@ const updateDealStage = async (req, res) => {
   }
 };
 
+
 const deleteDeal = async (req, res) => {
   try {
     const { id } = req.params;
