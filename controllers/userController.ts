@@ -1,4 +1,8 @@
+import crypto from "crypto";
 import User from "../models/User";
+import sendEmail from "../utils/emailService";
+import jwt from "jsonwebtoken";
+import Organization from "../models/Organization";
 
 // Get all users
 const getUsers = async (req, res) => {
@@ -45,7 +49,39 @@ const createUser = async (req, res) => {
       return res.status(400).json({ error: "User with this email already exists" });
     }
 
-    const user = await User.create({ name, email, password, role, userId: req.user.id });
+     // Generate a reset token
+     const token = crypto.randomBytes(32).toString("hex");
+
+     // Generate a verification token
+     const resetToken = jwt.sign({ token }, process.env.JWT_SECRET, {
+      expiresIn: "2d",
+    });
+
+    // Create a reset URL
+    const resetUrl = `${origin}/auth/reset-password?resetToken=${resetToken}`;
+
+    // Send reset password email
+    const emailResponse = await sendEmail(
+      email,
+      "Password Reset Request",
+      "Reset your password",
+      `
+        <p>You requested a password reset.</p>
+        <p>Click the link below to reset your password:</p>
+        <a href="${resetUrl}">Reset Password</a>
+        <p>If you did not request this, please ignore this email.</p>
+      `
+    );
+
+    if (!emailResponse.messageId) {
+      throw new Error("Failed to add user.");
+    }
+
+    //get organization and add the organization id
+    const organization = await Organization.findById(req?.user?.id)
+
+
+    const user = await User.create({ name, email, password, role, organizationId: organization?._id });
     res.status(201).json({ message: "User created successfully", user });
   } catch (err) {
     res.status(500).json({ error: err.message });
