@@ -15,7 +15,7 @@ const userSchema = new mongoose.Schema({
     endDate: { type: Date },
     autoRenew: { type: Boolean, default: true },
   },
-  stripeCustomerId: { type: String },
+  stripeCustomerId: String,
   organizationId: { type: mongoose.Schema.Types.ObjectId, ref: "Organization" },
   isVerified: { type: Boolean, default: false },
   verificationToken: String,

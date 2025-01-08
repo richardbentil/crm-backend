@@ -10,7 +10,7 @@ import Deal from "../models/Deal";
 const getUsers = async (req, res) => {
   const { search = "" } = req.query;
 
-    const filter = { name: search };
+  const filter = { name: search };
 
   try {
     const user = await User.find(filter, "name email subscriptionPlan billingCycle planDetails");
@@ -51,11 +51,11 @@ const createUser = async (req, res) => {
       return res.status(400).json({ error: "User with this email already exists" });
     }
 
-     // Generate a reset token
-     const token = crypto.randomBytes(32).toString("hex");
+    // Generate a reset token
+    const token = crypto.randomBytes(32).toString("hex");
 
-     // Generate a verification token
-     const resetToken = jwt.sign({ token }, process.env.JWT_SECRET, {
+    // Generate a verification token
+    const resetToken = jwt.sign({ token }, process.env.JWT_SECRET, {
       expiresIn: "2d",
     });
 
@@ -113,31 +113,31 @@ const assignUser = async (req, res) => {
   try {
     const { userId, action, dealOrTaskId } = req.body;
 
-    if(action == "addToTask"){
-    await Task.findOneAndUpdate(
-      { _id: dealOrTaskId },
-      {
-        $push: {
-          assignees: {
-            userId
+    if (action == "addToTask") {
+      await Task.findOneAndUpdate(
+        { _id: dealOrTaskId },
+        {
+          $push: {
+            assignees: {
+              userId
+            },
           },
         },
-      },
-      { new: true, upsert: true } // Create a document if it doesn't exist
-    );
-  } else {
-    await Deal.findOneAndUpdate(
-      { _id: dealOrTaskId },
-      {
-        $push: {
-          assignees: {
-            userId
+        { new: true, upsert: true } // Create a document if it doesn't exist
+      );
+    } else {
+      await Deal.findOneAndUpdate(
+        { _id: dealOrTaskId },
+        {
+          $push: {
+            assignees: {
+              userId
+            },
           },
         },
-      },
-      { new: true, upsert: true } // Create a document if it doesn't exist
-    );
-  }
+        { new: true, upsert: true } // Create a document if it doesn't exist
+      );
+    }
 
     res.status(200).json({ message: "Assigned user successfully" });
   } catch (err) {
@@ -149,33 +149,61 @@ const unAssignUser = async (req, res) => {
   try {
     const { userId, action, dealOrTaskId } = req.body;
 
-    if(action == "removeFromTask"){
-    await Task.findOneAndUpdate(
-      { _id: dealOrTaskId },
-      {
-        $pull: {
-          assignees: {
-            userId
+    if (action == "removeFromTask") {
+      await Task.findOneAndUpdate(
+        { _id: dealOrTaskId },
+        {
+          $pull: {
+            assignees: {
+              userId
+            },
           },
         },
-      },
-     
-    );
-  } else {
-    await Deal.findOneAndUpdate(
-      { _id: dealOrTaskId },
-      {
-        $pull: {
-          assignees: {
-            userId
-          },
-        },
-      },
-      
-    );
-  }
 
-  res.status(200).json({ message: "Unassigned user successfully" });
+      );
+    } else {
+      await Deal.findOneAndUpdate(
+        { _id: dealOrTaskId },
+        {
+          $pull: {
+            assignees: {
+              userId
+            },
+          },
+        },
+
+      );
+    }
+
+    res.status(200).json({ message: "Unassigned user successfully" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+const assignAssignee = async (req, res) => {
+  try {
+    const { userId, action, dealOrTaskId } = req.body;
+
+    if (action == "addToTask") {
+      await Task.findOneAndUpdate(
+        { _id: dealOrTaskId },
+        {
+          assignee: userId
+        },
+        { new: true, upsert: true } // Create a document if it doesn't exist
+      );
+    } else {
+      await Deal.findOneAndUpdate(
+        { _id: dealOrTaskId },
+        {
+          assignee: userId
+        },
+        { new: true, upsert: true } // Create a document if it doesn't exist
+      );
+    }
+
+    res.status(200).json({ message: "Assigned user successfully" });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -196,4 +224,4 @@ const deleteUser = async (req, res) => {
   }
 };
 
-export { getUsers, getUser, createUser, updateUser, deleteUser, assignUser, unAssignUser };
+export { getUsers, getUser, createUser, updateUser, deleteUser, assignUser, unAssignUser, assignAssignee };
