@@ -2,7 +2,7 @@ import { io } from "..";
 import Note from "../models/Note";
 
 
-const createNote = async (req, res) => {
+const createNote = async (req, res, next) => {
   try {
     const { content, heading, taskId, dealId } = req.body;
 
@@ -25,11 +25,14 @@ const createNote = async (req, res) => {
 
     res.status(201).json({ message: "Note created successfully", updatedNote });
   } catch (err) {
-    res.status(400).json({ error: err.message });
+    next({
+      status: 500,
+      message: err.message,
+  })
   }
 };
 
-const getNote = async (req, res) => {
+const getNote = async (req, res, next) => {
   try {
     const { taskId } = req.params;
 
@@ -41,12 +44,15 @@ const getNote = async (req, res) => {
 
     res.status(200).json(notes.notes);
   } catch (err) {
-    res.status(400).json({ error: err.message });
+    next({
+      status: 500,
+      message: err.message,
+  })
   }
 };
 
 
-const updateNote = async (req, res) => {
+const updateNote = async (req, res, next) => {
   try {
     const { taskId, noteId } = req.body;
     const { content } = req.body;
@@ -68,12 +74,15 @@ const updateNote = async (req, res) => {
 
     res.status(200).json({ message: "Note updated successfully", updatedNote });
   } catch (err) {
-    res.status(400).json({ error: err.message });
+    next({
+      status: 500,
+      message: err.message,
+  })
   }
 };
 
 
-const deleteNote = async (req, res) => {
+const deleteNote = async (req, res, next) => {
   try {
     const { taskId, noteId } = req.body;
 
@@ -92,7 +101,10 @@ const deleteNote = async (req, res) => {
 
     res.status(200).json({ message: "Note deleted successfully", updatedNote });
   } catch (err) {
-    res.status(400).json({ error: err.message });
+    next({
+      status: 500,
+      message: err.message,
+  })
   }
 };
 

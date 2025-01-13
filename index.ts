@@ -15,7 +15,7 @@ import emailRoutes from "./routes/emailRoutes";
 import reportRoutes from "./routes/reportRoutes";
 import userRoutes from "./routes/userRoutes";
 import importExportRoutes from "./routes/importExportRoutes";
-import paymentRoutes from "./routes/paymentsRoutes";
+import subscriptionRoutes from "./routes/subscriptionRoutes";
 import emailTemplateRoutes from "./routes/EmailTemplateRoutes";
 import noteRoutes from "./routes/noteRoutes";
 import messagesRoutes from "./routes/chatMessageRoute";
@@ -38,7 +38,7 @@ connectToDatabase();
 
 const corsOptions = {
     origin: '*', // Restrict to a specific frontend domain
-    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
     allowedHeaders: ['Content-Type', 'Authorization'],
 };
 
@@ -95,7 +95,7 @@ app.use("/api/emails", emailRoutes);
 app.use("/api/reports", reportRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/data", importExportRoutes);
-app.use("/api/payment", paymentRoutes);
+app.use("/api/subscription", subscriptionRoutes);
 app.use("/api/email-template", emailTemplateRoutes);
 app.use("/api/notes", noteRoutes);
 app.use("/api/messages", messagesRoutes);

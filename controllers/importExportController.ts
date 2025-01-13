@@ -3,7 +3,7 @@ import csvParser from "csv-parser";
 import Contact from "../models/Contact";
 import fastCsv from "fast-csv";
 
-const importContacts = async (req, res) => {
+const importContacts = async (req, res, next) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: "No file uploaded" });
@@ -29,11 +29,14 @@ const importContacts = async (req, res) => {
         res.status(200).json({ message: "Contacts imported successfully", contacts });
       });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    next({
+      status: 500,
+      message: err.message,
+  })
   }
 };
 
-const exportContacts = async (req, res) => {
+const exportContacts = async (req, res, next) => {
   try {
     const contacts = await Contact.find({ createdBy: req.user.id }).select(
       "name email phone company"
@@ -47,7 +50,10 @@ const exportContacts = async (req, res) => {
     contacts.forEach((contact) => csvStream.write(contact.toObject()));
     csvStream.end();
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    next({
+      status: 500,
+      message: err.message,
+  })
   }
 };
 

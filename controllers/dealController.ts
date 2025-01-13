@@ -1,38 +1,77 @@
-const Deal = require("../models/Deal");
+import Deal from "../models/Deal";
+import Note from "../models/Note";
+import Task from "../models/Task";
+import Contact from "../models/Contact"
+import ChatMessage from "../models/ChatMessage"
 
-const createDeal = async (req, res) => {
+const createDeal = async (req, res, next) => {
   try {
-    const { name, value, stage, owner } = req.body;
+    const {
+      name,
+      owner,
+      value,
+      stage,
+      expectedCloseDate,
+      description } = req.body;
 
     const deal = await Deal.create({
       name,
       value,
       stage,
       owner,
+      expectedCloseDate,
+      description,
       createdBy: req.user.id,
     });
 
     res.status(201).json({ message: "Deal created successfully", deal });
   } catch (err) {
-    res.status(400).json({ error: err.message });
+    next({
+      status: 500,
+      message: err.message,
+    })
   }
 };
 
-const getDeals = async (req, res) => {
+const getDeals = async (req, res, next) => {
   try {
+    const { id } = req.params
+    console.log(id)
+    if (id !== undefined) {
+      const deal = await Deal.findById(id, "name value stage owner createdAt description expectedCloseDate probability");
+      if (!deal) {
+        return res.status(404).json({ message: "Deal not found" });
+      }
+
+      const notes = await Note.findOne({ dealId: id })
+      const tasks = await Task.findOne({ dealId: id })
+      const comments = await ChatMessage.findOne({ room: id })
+      const owner = deal?.owner ? await Contact.findById(deal.owner, "name email phone") : null;
+     
+      return res.status(200).json({ 
+        ...deal.toObject(),  // Convert to plain object if it's a mongoose document 
+        owner, 
+        notes: notes?.notes || [], 
+        tasks: tasks?.tasks || [],
+        comments: comments?.messages || [] 
+      });
+    }
     const { stage } = req.query;
 
-    const query: any = req.user.role == "Admin" ? {} : { createdBy: req.user.id };
+    const query: any = req.user.role == "admin" ? {} : { createdBy: req.user.id };
     if (stage) query.stage = stage;
 
     const deals = await Deal.find(query).populate("owner", "name email");
     res.status(200).json(deals);
   } catch (err) {
-    res.status(400).json({ error: err.message });
+    next({
+      status: 500,
+      message: err.message,
+    })
   }
 };
 
-const updateDealStage = async (req, res) => {
+const updateDealStage = async (req, res, next) => {
   try {
     const { id } = req.params;
     const { stage } = req.body;
@@ -51,12 +90,15 @@ const updateDealStage = async (req, res) => {
 
     res.status(200).json({ message: "Deal stage updated successfully", deal });
   } catch (err) {
-    res.status(400).json({ error: err.message });
+    next({
+      status: 500,
+      message: err.message,
+    })
   }
 };
 
 
-const deleteDeal = async (req, res) => {
+const deleteDeal = async (req, res, next) => {
   try {
     const { id } = req.params;
 
@@ -65,8 +107,32 @@ const deleteDeal = async (req, res) => {
 
     res.status(200).json({ message: "Deal deleted successfully" });
   } catch (err) {
-    res.status(400).json({ error: err.message });
+    next({
+      status: 500,
+      message: err.message,
+    })
   }
 };
 
-export { createDeal, getDeals, updateDealStage, deleteDeal };
+
+const assignUser = async (req, res, next) => {
+  try {
+    const { userId, dealId } = req.body;
+
+      await Deal.findOneAndUpdate(
+        { _id: dealId },
+        {
+            assignee: userId
+        }
+      );
+    
+    res.status(200).json({ message: "Assigned user successfully" });
+  } catch (err) {
+    next({
+      status: 500,
+      message: err.message,
+    })
+  }
+};
+
+export { createDeal, getDeals, updateDealStage, deleteDeal, assignUser };

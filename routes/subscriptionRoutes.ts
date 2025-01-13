@@ -1,12 +1,11 @@
 import { Router } from 'express';
 const router = Router();
-import subscription from '../controllers/subscriptionController'
 import protect from '../middlewares/authMiddleware';
 import checkForSubscription from '../middlewares/subscription';
+import { cancelSubscription } from '../controllers/authController';
+import { subscribe, getSubscriptionDetails, getBillingHistory, updateSubscriptionPlan, stripeWebhook } from '../controllers/subscriptionController';
 
 router.use(protect)
-
-const {subscribe, getSubscriptionDetails, getBillingHistory, updateSubscriptionPlan, cancelSubscription, stripeWebhook} = subscription
 
 router.post('/subscribe', subscribe);
 router.get('/subscription-details', checkForSubscription, getSubscriptionDetails);

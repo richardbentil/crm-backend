@@ -6,10 +6,9 @@ const dealSchema = new mongoose.Schema(
     value: { type: Number, required: true },
     stage: { type: String, enum: ["Lead", "Opportunity", "Won", "Lost"], default: "Lead" },
     owner: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+    assignee: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
     teamMembers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User"}],
-    notes: [{ type: mongoose.Schema.Types.ObjectId, ref: "Note"}],
-    tasks: [{ type: mongoose.Schema.Types.ObjectId, ref: "Task" }],
     attachments: [
       {
         url: { type: String, required: true },

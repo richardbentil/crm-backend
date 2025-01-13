@@ -1,5 +1,4 @@
-const jwt = require("jsonwebtoken");
-const User = require("../models/User");
+import jwt from "jsonwebtoken";
 
 const protect = async (req, res, next) => {
   try {
@@ -7,13 +6,17 @@ const protect = async (req, res, next) => {
     if (!token) return res.status(401).json({ error: "Unauthorized" });
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = await User.findById(decoded.id).select("-password");
 
-    if (!req.user) return res.status(401).json({ error: "Unauthorized" });
+    console.log(decoded)
+    
+    req.user = decoded
 
     next();
   } catch (err) {
-    res.status(500).json({ error: "Unauthorized" });
+    if(err.message === "jwt expired"){
+      return res.status(401).json({ error: "Token expired. Please log in again." });
+    }
+    res.status(500).json({ error: err.message });
   }
 };
 

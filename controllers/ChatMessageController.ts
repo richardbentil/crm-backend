@@ -2,10 +2,10 @@ import ChatMessage from "../models/ChatMessage";
 
 export const saveMessage = async (req, res) => {
     try {
-      const { room, message } = req.body;
+      const { dealId, message } = req.body;
   
       const chatMessage = await ChatMessage.findOneAndUpdate(
-        { room },
+        { room: dealId },
         {
           $push: {
             messages: {

@@ -7,7 +7,7 @@ const deleteFromCloudinary = async (publicId: string) => {
   return cloudinary.uploader.destroy(publicId);
 };
 
-const uploadFile = async (req, res) => {
+const uploadFile = async (req, res, next) => {
   try {
     //upload to cloudinary
     const result: any = await uploadToCloudinary(req.file);
@@ -34,11 +34,14 @@ const uploadFile = async (req, res) => {
 
   
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    next({
+      status: 500,
+      message: err.message,
+  })
   }
 }
 
-const getFiles = async (req, res) => {
+const getFiles = async (req, res, next) => {
   try {
     const { id } = req.params;
 
@@ -47,11 +50,14 @@ const getFiles = async (req, res) => {
     const deals: any = await Deal.find(query).populate("attachments");
     res.status(200).json(deals.attachments);
   } catch (err) {
-    res.status(400).json({ error: err.message });
+    next({
+      status: 500,
+      message: err.message,
+  })
   }
 };
 
-const deleteFile = async (req, res) => {
+const deleteFile = async (req, res, next) => {
   try {
     const { id } = req.params; // Deal ID
     const { public_id } = req.body; // File public ID to delete from Cloudinary
@@ -82,7 +88,10 @@ const deleteFile = async (req, res) => {
 
     res.status(200).json({ message: "Attachment deleted successfully" });
   } catch (err) {
-    res.status(400).json({ error: err.message });
+    next({
+      status: 500,
+      message: err.message,
+  })
   }
 };
 

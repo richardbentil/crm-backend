@@ -7,23 +7,47 @@ import Task from "../models/Task";
 import Deal from "../models/Deal";
 
 // Get all users
-const getUsers = async (req, res) => {
-  const { search = "" } = req.query;
+const getUsers = async (req, res, next) => {
+  const { search = "", page = 1, limit = 10 } = req.query;
 
-  const filter = { name: search };
+  // Convert page and limit to numbers and set defaults if invalid
+  const pageNumber = Math.max(1, parseInt(page, 10)); // Ensure page is at least 1
+  const limitNumber = Math.max(1, parseInt(limit, 10)); // Ensure limit is at least 1
+  const skip = (pageNumber - 1) * limitNumber;
+
+  const filter = search
+    ? { name: { $regex: search, $options: "i" } } // Case-insensitive search
+    : {};
 
   try {
-    const user = await User.find(filter, "name email subscriptionPlan billingCycle planDetails");
-    if (!user) return res.status(404).json({ message: "User not found" });
+    // Fetch users with pagination
+    const users = await User.find(
+      {...filter, createdBy: req.user.id},
+      "name email phone role"
+    )
+      .skip(skip)
+      .limit(limitNumber);
 
-    res.status(200).json({ profile: user });
-  } catch (error) {
-    console.error("Error fetching user profile:", error);
-    res.status(500).json({ message: "Server error", error });
+    const totalUsers = await User.countDocuments(filter); // Total matching users
+    const totalPages = Math.ceil(totalUsers / limitNumber);
+
+    res.status(200).json({
+      currentPage: pageNumber,
+      totalPages,
+      totalUsers,
+      limit: limitNumber,
+      data: users || [],
+    });
+  } catch (err) {
+    next({
+      status: 500,
+      message: err.message,
+    });
   }
 };
 
-const getUser = async (req, res) => {
+
+const getUser = async (req, res, next) => {
   const { id } = req.params;
 
   try {
@@ -38,7 +62,7 @@ const getUser = async (req, res) => {
 };
 
 // Create a new user (Admin-only)
-const createUser = async (req, res) => {
+const createUser = async (req, res, next) => {
   try {
     const { name, email, phone, role } = req.body;
 
@@ -58,6 +82,8 @@ const createUser = async (req, res) => {
     const resetToken = jwt.sign({ token }, process.env.JWT_SECRET, {
       expiresIn: "2d",
     });
+
+    const origin = req.headers.origin || process.env.CLIENT_URL
 
     // Create a reset URL
     const resetUrl = `${origin}/auth/reset-password?resetToken=${resetToken}`;
@@ -79,18 +105,21 @@ const createUser = async (req, res) => {
     }
 
     //get organization and add the organization id
-    const organization = await Organization.findById(req?.user?.id)
+    const organization = await Organization.findOne({ownerId: req?.user?.id})
 
 
-    const user = await User.create({ name, email, phone, role, password: '', organizationId: organization?._id });
+    const user = await User.create({ name, email, phone, role, password: 'ndijutfnj', organizationId: organization?._id, createdBy: req.user.id });
     res.status(201).json({ message: "User created successfully", user });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    next({
+      status: 500,
+      message: err.message,
+  })
   }
 };
 
 // Update a user's role or details (Admin-only)
-const updateUser = async (req, res) => {
+const updateUser = async (req, res, next) => {
   try {
     const { id } = req.params;
     const { name, email, role } = req.body;
@@ -105,32 +134,25 @@ const updateUser = async (req, res) => {
     await user.save();
     res.status(200).json({ message: "User updated successfully", user });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    next({
+      status: 500,
+      message: err.message,
+  })
   }
 };
 
-const assignUser = async (req, res) => {
+const assignUsers = async (req, res, next) => {
   try {
     const { userId, action, dealOrTaskId } = req.body;
 
     if (action == "addToTask") {
-      await Task.findOneAndUpdate(
-        { _id: dealOrTaskId },
-        {
-          $push: {
-            assignees: {
-              userId
-            },
-          },
-        },
-        { new: true, upsert: true } // Create a document if it doesn't exist
-      );
+     
     } else {
       await Deal.findOneAndUpdate(
         { _id: dealOrTaskId },
         {
           $push: {
-            assignees: {
+            teamMembers: {
               userId
             },
           },
@@ -141,11 +163,17 @@ const assignUser = async (req, res) => {
 
     res.status(200).json({ message: "Assigned user successfully" });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    next({
+      status: 500,
+      message: err.message,
+  })
   }
 };
 
-const unAssignUser = async (req, res) => {
+
+
+
+const unAssignUser = async (req, res, next) => {
   try {
     const { userId, action, dealOrTaskId } = req.body;
 
@@ -154,7 +182,7 @@ const unAssignUser = async (req, res) => {
         { _id: dealOrTaskId },
         {
           $pull: {
-            assignees: {
+            teamMembers: {
               userId
             },
           },
@@ -166,7 +194,7 @@ const unAssignUser = async (req, res) => {
         { _id: dealOrTaskId },
         {
           $pull: {
-            assignees: {
+            teamMembers: {
               userId
             },
           },
@@ -177,40 +205,15 @@ const unAssignUser = async (req, res) => {
 
     res.status(200).json({ message: "Unassigned user successfully" });
   } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-};
-
-const assignAssignee = async (req, res) => {
-  try {
-    const { userId, action, dealOrTaskId } = req.body;
-
-    if (action == "addToTask") {
-      await Task.findOneAndUpdate(
-        { _id: dealOrTaskId },
-        {
-          assignee: userId
-        },
-        { new: true, upsert: true } // Create a document if it doesn't exist
-      );
-    } else {
-      await Deal.findOneAndUpdate(
-        { _id: dealOrTaskId },
-        {
-          assignee: userId
-        },
-        { new: true, upsert: true } // Create a document if it doesn't exist
-      );
-    }
-
-    res.status(200).json({ message: "Assigned user successfully" });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+    next({
+      status: 500,
+      message: err.message,
+  })
   }
 };
 
 // Delete a user (Admin-only)
-const deleteUser = async (req, res) => {
+const deleteUser = async (req, res, next) => {
   try {
     const { id } = req.params;
 
@@ -220,8 +223,11 @@ const deleteUser = async (req, res) => {
     await User.findOneAndDelete({ _id: id, createdBy: req.user.id });
     res.status(200).json({ message: "User deleted successfully" });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    next({
+      status: 500,
+      message: err.message,
+  })
   }
 };
 
-export { getUsers, getUser, createUser, updateUser, deleteUser, assignUser, unAssignUser, assignAssignee };
+export { getUsers, getUser, createUser, updateUser, deleteUser, assignUsers, unAssignUser };

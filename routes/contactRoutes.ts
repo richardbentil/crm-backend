@@ -27,6 +27,7 @@ const router = express.Router();
 
 router.post("/", protect, checkSubscriptionStatus, createContact);
 router.get("/", protect, getContacts);
+router.get("/:id", protect, getContacts);
 router.patch("/:id", protect, updateContact);
 router.delete("/:id", protect, checkRole(["Admin"]), deleteContact);
 

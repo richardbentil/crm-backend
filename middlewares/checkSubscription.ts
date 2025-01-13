@@ -30,7 +30,7 @@ export const checkSubscriptionStatus = async (
 
     const { subscriptionPlan, stripeCustomerId, planDetails } = user;
 
-    if (subscriptionPlan === "standard") {
+    if (["basic", "standard"].includes(subscriptionPlan)) {
       // Handle standard plan with trial
       const trialEndDate = planDetails?.endDate
         ? new Date(planDetails.endDate)
@@ -89,6 +89,7 @@ export const checkSubscriptionStatus = async (
       }
     } else {
       // Invalid or unsupported subscription plan
+      console.log("not working")
       res.status(400).json({ error: "Invalid subscription plan" });
       return
     }

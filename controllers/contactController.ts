@@ -1,25 +1,60 @@
 import Contact from "../models/Contact";
+import Deal from "../models/Deal";
+import Task from "../models/Task";
 
-const createContact = async (req, res) => {
+const createContact = async (req, res, next) => {
   try {
-    const { name, email, phone, company, notes } = req.body;
+    const { name, email, phone, address, contactPerson } = req.body;
     const contact = await Contact.create({
       name,
       email,
       phone,
-      company,
-      notes,
+      address,
+      contactPerson,
       createdBy: req.user.id,
     });
     res.status(201).json({ message: "Contact created successfully", contact });
   } catch (err) {
-    res.status(400).json({ error: err.message });
+    next({
+      status: 500,
+      message: err.message,
+  })
   }
 };
 
-const getContacts = async (req, res) => {
+const getContacts = async (req, res, next) => {
   try {
     const { page = 1, limit = 10, search = "" } = req.query;
+    const { id } = req.params
+
+    if (id !== undefined) {
+      const contact = await Contact.findById(id);
+      if (!contact) {
+        return res.status(404).json({ error: "Contact not found" });
+      }
+      
+      // Get deals associated with the contact
+      const deals = await Deal.find({ clientId: id });
+      
+      // Extract deal IDs
+      const ids = deals.map(deal => deal?._id);
+      
+      // Find tasks associated with the deals
+      const tasks = await Task.find({
+        dealId: { $in: ids }, // Specify the field to match
+      });
+      
+      // Gather tasks into a single array
+      const finalT = [];
+      tasks.forEach(task => {
+        if (Array.isArray(task.tasks)) {
+          finalT.push(...task.tasks);
+        }
+      });
+      
+      // Respond with the contact, tasks, and deals
+      return res.status(200).json({ ...contact, tasks: finalT, deals });      
+    }
 
     const query: any = {
       createdBy: req.user.id,
@@ -43,13 +78,15 @@ const getContacts = async (req, res) => {
         pageSize: limit,
       },
     });
-    
+
   } catch (err) {
-    res.status(400).json({ error: err.message });
-  }
+    next({
+      status: 500,
+      message: err.message,
+  })  }
 };
 
-const updateContact = async (req, res) => {
+const updateContact = async (req, res, next) => {
   try {
     const { id } = req.params;
     const updates = req.body;
@@ -64,11 +101,15 @@ const updateContact = async (req, res) => {
 
     res.status(200).json({ message: "Contact updated successfully", contact });
   } catch (err) {
-    res.status(400).json({ error: err.message });
-  }
+    next({
+      status: 500,
+      message: err.message,
+  })  }
 };
 
-const deleteContact = async (req, res) => {
+
+
+const deleteContact = async (req, res, next) => {
   try {
     const { id } = req.params;
 
@@ -77,8 +118,10 @@ const deleteContact = async (req, res) => {
 
     res.status(200).json({ message: "Contact deleted successfully" });
   } catch (err) {
-    res.status(400).json({ error: err.message });
-  }
+    next({
+      status: 500,
+      message: err.message,
+  }) }
 };
 
 export { createContact, getContacts, updateContact, deleteContact };

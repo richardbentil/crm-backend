@@ -27,76 +27,84 @@ const register = async (req, res) => {
     if (!validPlans.includes(subscriptionPlan)) {
       throw new Error("Invalid subscription plan.");
     }
-
-    // Define plan details
-    let planDetails = {};
-    const startDate = new Date();
-    if (["basic", "standard"].includes(subscriptionPlan)) {
-      const endDate = new Date();
-      endDate.setDate(startDate.getDate() + 7); // Free trial period
-      planDetails = { startDate, endDate, autoRenew: true };
-    } else if (subscriptionPlan === "free") {
-      planDetails = { startDate, autoRenew: false };
+    
+    const origin = req.headers.origin || process.env.FRONTEND_URL;
+    const {emailResponse, verificationToken}: any = await sendVerificationEmail(email, name, origin)
+  
+    if (!emailResponse?.messageId) {
+      throw new Error("There was an error signin up.");
     }
 
-    // Generate a verification token
-    const verificationToken = jwt.sign({ email }, process.env.JWT_SECRET, {
-      expiresIn: "1h",
-    });
+    // Create Stripe customer if not on the basic plan
+    let stripeCustomer = null;
+    if (subscriptionPlan !== "basic") {
+      stripeCustomer = await stripe.customers.create({
+        email,
+        name,
+      });
+    }
+
+    let stripeSubscriptionId = null;
+    let planDetails = {};
+
+    if (subscriptionPlan === "standard") {
+      try {
+        const subscription = await stripe.subscriptions.create({
+          customer: stripeCustomer.id,
+          items: [{ price: process.env.STRIPE_STANDARD_PRICE_ID }],
+          trial_period_days: 7,
+        });
+
+        stripeSubscriptionId = subscription.id;
+
+        const startDate = new Date();
+        const endDate = new Date();
+        endDate.setDate(startDate.getDate() + 7); // Free trial period
+        planDetails = { startDate, endDate, autoRenew: true };
+      } catch (error) {
+        throw new Error("Failed to create Stripe subscription: " + error.message);
+      }
+    } else if (subscriptionPlan === "basic") {
+      planDetails = { startDate: new Date(), autoRenew: false };
+    }
 
     // Create user in the database
-    const user = await User.create(
+   const user: any = await User.create(
       [
         {
           name,
           email,
           password,
           isVerified: false,
-          subscriptionPlan,
-          planDetails,
           verificationToken,
+          subscriptionPlan,
+          stripeCustomerId: stripeCustomer?.id,
+          stripeSubscriptionId,
+          planDetails,
         },
       ],
       { session }
     );
 
-    const createdUser = user[0]; // Extract user from array (Mongoose bulk operation returns an array)
+    //create organization account
+    await Organization.create({
+      ownerId: user?._id
+    })
 
-    // Create the organization
-    await Organization.create(
-      [
-        {
-          name: `${name}'s Organization`, // Set a default name or receive it from the request
-          ownerId: createdUser._id,
-        },
-      ],
-      { session }
-    );
-
-    // Send verification email
-    const origin = req.headers.origin || process.env.FRONTEND_URL;
-    const emailResponse: any = await sendVerificationEmail(email, name, origin, verificationToken);
-
-    if (!emailResponse?.messageId) {
-      throw new Error("There was an error sending the verification email.");
-    }
-
-    // Commit transaction
     await session.commitTransaction();
-
-    res.status(201).json({ message: "User registered. Verification email sent." });
-  } catch (err) {
-    // Rollback transaction
-    await session.abortTransaction();
-    res.status(400).json({ error: err.message });
-  } finally {
     session.endSession();
+
+
+    res.status(201).json({ message: "User registered. Verification email sent."});
+  } catch (err) {
+    await session.abortTransaction();
+    session.endSession();
+    res.status(400).json({ error: err.message });
   }
 };
 
-
 // Login function
-const login = async (req, res, next) => {
+const login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
@@ -116,21 +124,17 @@ const login = async (req, res, next) => {
     }
 
     if (user.isVerified == false) {
-      // Generate a verification token
-      const verificationToken = jwt.sign({ email }, process.env.JWT_SECRET, {
-        expiresIn: "1h",
-      });
       const origin = req.headers.origin || process.env.FRONTEND_URL;
-      const emailResponse: any = sendVerificationEmail(email, user?.name, origin, verificationToken)
+      const {emailResponse}: any = sendVerificationEmail(email, user?.name, origin)
 
-      if (emailResponse?.messageId) {
+      if(emailResponse?.messageId){
         return res.status(200).json({ message: "We realized your email hasn't been verified. We sent you a verification email." });
       } else {
         throw new Error(`There was an error`)
       }
     }
 
-    const token = jwt.sign({ id: user._id, email: user?.email, name: user?.name, role: user?.role }, process.env.JWT_SECRET, {
+    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
       expiresIn: "1d",
     });
 
@@ -140,7 +144,6 @@ const login = async (req, res, next) => {
       message: "Login successful.",
       token,
       user: {
-        id: user._id,
         name: user.name,
         email: user.email,
         role: user.role,
@@ -150,17 +153,14 @@ const login = async (req, res, next) => {
         organization,
       },
     });
-  } catch (error) {
-    next({
-      status: 500,
-      message: 'Error registering user: ' + error.message,
-    })
+  } catch (err) {
+    res.status(500).json({ error: "An unexpected error occurred during login." });
   }
 };
 
 
 // Verify Email function
-const verifyEmail = async (req, res, next) => {
+const verifyEmail = async (req, res) => {
   try {
     const { token } = req.query;
 
@@ -177,16 +177,13 @@ const verifyEmail = async (req, res, next) => {
     }
 
     res.status(200).json({ message: "Email verified successfully." });
-  } catch (error) {
-    next({
-      status: 500,
-      message: error.message,
-    })
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 };
 
 
-const forgotPassword = async (req, res, next) => {
+const forgotPassword = async (req, res) => {
   const { email } = req.body;
   let user;
   try {
@@ -196,17 +193,17 @@ const forgotPassword = async (req, res, next) => {
       return res.status(404).json({ message: "User with this email does not exist." });
     }
 
-    // Generate a reset token
-    const token = crypto.randomBytes(32).toString("hex");
+     // Generate a reset token
+     const token = crypto.randomBytes(32).toString("hex");
 
-    // Generate a verification token
-    const resetToken = jwt.sign({ token }, process.env.JWT_SECRET, {
+     // Generate a verification token
+     const resetToken = jwt.sign({ token }, process.env.JWT_SECRET, {
       expiresIn: "20m",
     });
 
     // Set token and expiry in the database
     user.resetPasswordToken = token;
-
+ 
     await user.save();
 
     const origin = req.headers.origin || process.env.FRONTEND_URL;
@@ -240,15 +237,13 @@ const forgotPassword = async (req, res, next) => {
       user.resetPasswordToken = undefined;
       await user.save();
     }
-    next({
-      status: 500,
-      message: error.message,
-    })
+
+    res.status(500).json({ message: "An error occurred. Please try again later." });
   }
 };
 
 
-const resetPassword = async (req, res, next) => {
+const resetPassword = async (req, res) => {
   const { token } = req.query; // Token from URL
   const { newPassword } = req.body; // New password from request body
 
@@ -275,15 +270,12 @@ const resetPassword = async (req, res, next) => {
     // Respond to the user
     res.status(200).json({ message: "Password reset successful." });
   } catch (error) {
-    next({
-      status: 500,
-      message: error.message,
-    })
+    res.status(500).json({ error: "An error occurred. Please try again later." });
   }
 };
 
 // Cancel Subscription function
-const cancelSubscription = async (req, res, next) => {
+const cancelSubscription = async (req, res) => {
   try {
     const { userId } = req.body;
 
@@ -300,17 +292,14 @@ const cancelSubscription = async (req, res, next) => {
     await user.save();
 
     res.status(200).json({ message: "Subscription canceled successfully." });
-  } catch (error) {
-    next({
-      status: 500,
-      message: error.message,
-    })
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 };
 
 
 // Update a user's role or details (Admin-only)
-const updateUser = async (req, res, next) => {
+const updateUser = async (req, res) => {
   try {
     const { id } = req.params;
     const { name, email, role, company } = req.body;
@@ -342,73 +331,54 @@ const updateUser = async (req, res, next) => {
           availableFeatures: req.features || [], // Ensure it's at least an empty array
         },
       });
-  } catch (error) {
-    next({
-      status: 500,
-      message: error.message,
-    })
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 };
 
-const updateCompany = async (req, res, next) => {
+// Update users company
+const updateCompany = async (req, res) => {
   try {
     const { name, email, address, phone, contactPerson } = req.body;
 
-    // Validate input
-    if (!name && !email && !address && !phone && !contactPerson) {
-      return res.status(400).json({ error: "At least one field must be provided for update." });
-    }
+    const organization: any = await Organization.findById({ ownerId: req.user.id });
+    if (!organization) return res.status(404).json({ error: "User not found" });
 
-    // Validate user
-    if (!req.user?.id) {
-      return res.status(401).json({ error: "Unauthorized. User ID is missing." });
-    }
+    organization.name = name
+    organization.email = email
+    organization.address = address
+    organization.phone = phone
+    organization.contactPerson = contactPerson
 
-    // Update the organization
-    const organization = await Organization.findOneAndUpdate(
-      { ownerId: req.user.id },
-      {
-        $set: {
-          name,
-          email,
-          address,
-          phone,
-          contactPerson // Set contactPerson directly
-        },
-      },
-      { new: true } // Return the updated document
-    );
-
-    if (!organization) {
-      return res.status(404).json({ error: "Organization not found for the given user." });
-    }
-
-    res.status(200).json({ message: "Company data updated successfully", organization });
-  } catch (error) {
-    next({
-      status: 500,
-      message: error.message,
-    })
+    await organization.save();
+    res.status(201).json({ message: "Company data updated successfully", organization });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 };
 
-const sendVerificationEmail = async (email, name, origin, verificationToken) => {
+
+const sendVerificationEmail = async(email, name, origin) => {
+  // Generate a verification token
+  const verificationToken = jwt.sign({ email }, process.env.JWT_SECRET, {
+    expiresIn: "1h",
+  });
 
   const verificationLink = `${origin}/auth/verify-email?token=${verificationToken}`;
 
-  // Send verification email
-  const emailResponse: any = await sendEmail(
-    email,
-    "Verify your email",
-    "Email Verification",
-    `
+    // Send verification email
+    const emailResponse: any = await sendEmail(
+      email,
+      "Verify your email",
+      "Email Verification",
+      `
         <p>Hi ${name},</p>
         <p>Thank you for registering. Please verify your email by clicking the link below:</p>
         <a href="${verificationLink}">Verify Email</a>
       `
-  );
+    );
 
-  return emailResponse
+    return {emailResponse, verificationToken}
 }
 
 

@@ -3,7 +3,7 @@ import Deal from "../models/Deal";
 import Task from "../models/Task";
 import EmailLog from "../models/EmailLog";
 
-const getDashboardMetrics = async (req, res) => {
+const getDashboardMetrics = async (req, res, next) => {
   try {
     const query = req.user.role == "Admin" ? {} : { createdBy: req.user.id };
     const query2 = req.user.role == "Admin" ? {} : { sentBy: req.user.id };
@@ -72,8 +72,10 @@ const getDashboardMetrics = async (req, res) => {
 
     res.status(200).json(metrics);
   } catch (err) {
-    console.error("Error fetching dashboard metrics:", err.message);
-    res.status(500).json({ error: err.message });
+    next({
+      status: 500,
+      message: err.message,
+  })
   }
 };
 

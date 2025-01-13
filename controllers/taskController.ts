@@ -1,7 +1,7 @@
 import { io } from "..";
 import Task from "../models/Task";
 
-const createTask = async (req, res) => {
+const createTask = async (req, res, next) => {
   try {
     const { title, description, deadline, dealId, assignedTo } = req.body;
 
@@ -26,28 +26,62 @@ const createTask = async (req, res) => {
 
     res.status(201).json({ message: "Task created successfully", updatedDeal });
   } catch (err) {
-    res.status(400).json({ error: err.message });
+    next({
+      status: 500,
+      message: err.message,
+  })
   }
 };
 
-const getTasks = async (req, res) => {
+const getTasks = async (req, res, next) => {
+  const { search = "", page = 1, limit = 10, dealId } = req.query;
+
+  // Convert page and limit to numbers and set defaults if invalid
+  const pageNumber = Math.max(1, parseInt(page, 10)); // Ensure page is at least 1
+  const limitNumber = Math.max(1, parseInt(limit, 10)); // Ensure limit is at least 1
+  const skip = (pageNumber - 1) * limitNumber;
+
   try {
-    const { dealId } = req.params;
-
-    const tasks = await Task.findOne({ dealId }).populate("tasks.createdBy tasks.assignedTo", "name email");
-
-    if (!tasks) {
-      return res.status(404).json({ error: "No tasks found for this deal" });
+    // Build the filter
+    const filter: any = {};
+    if (dealId) {
+      filter.dealId = dealId;
+    }
+    if (search) {
+      filter["tasks.title"] = { $regex: search, $options: "i" }; // Case-insensitive search on task title
     }
 
-    res.status(200).json(tasks.tasks);
+    // Fetch tasks with pagination and filtering
+    const tasks = await Task.find(filter)
+      .populate("tasks.createdBy tasks.assignedTo", "name email")
+      .skip(skip)
+      .limit(limitNumber);
+
+    const totalTasks = await Task.countDocuments(filter); // Total matching tasks
+    const totalPages = Math.ceil(totalTasks / limitNumber);
+
+    if (!tasks.length) {
+      return res.status(404).json({ error: "No tasks found" });
+    }
+
+    res.status(200).json({
+      currentPage: pageNumber,
+      totalPages,
+      totalTasks,
+      limit: limitNumber,
+      data: tasks,
+    });
   } catch (err) {
-    res.status(400).json({ error: err.message });
+    next({
+      status: 500,
+      message: err.message,
+    });
   }
 };
 
 
-const getTask = async (req, res) => {
+
+const getTask = async (req, res, next) => {
   try {
     const { dealId, taskId } = req.params;
 
@@ -59,12 +93,15 @@ const getTask = async (req, res) => {
 
     res.status(200).json(task);
   } catch (err) {
-    res.status(400).json({ error: err.message });
+    next({
+      status: 500,
+      message: err.message,
+  })
   }
 };
 
 
-const updateTask = async (req, res) => {
+const updateTask = async (req, res, next) => {
   try {
     const { dealId, taskId } = req.params;
     const updates = req.body;
@@ -82,12 +119,15 @@ const updateTask = async (req, res) => {
 
     res.status(200).json({ message: "Task updated successfully", deal });
   } catch (err) {
-    res.status(400).json({ error: err.message });
+    next({
+      status: 500,
+      message: err.message,
+  })
   }
 };
 
 
-const deleteTask = async (req, res) => {
+const deleteTask = async (req, res, next) => {
   try {
     const { dealId, taskId } = req.params;
 
@@ -104,7 +144,10 @@ const deleteTask = async (req, res) => {
 
     res.status(200).json({ message: "Task deleted successfully", deal });
   } catch (err) {
-    res.status(400).json({ error: err.message });
+    next({
+      status: 500,
+      message: err.message,
+  })
   }
 };
 

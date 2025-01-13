@@ -2,7 +2,7 @@ import sendEmail from "../utils/emailService";
 
 import EmailLog from "../models/EmailLog";
 
-const sendCustomerEmail = async (req, res) => {
+const sendCustomerEmail = async (req, res, next) => {
   try {
     const { to, subject, message } = req.body;
 
@@ -24,16 +24,22 @@ const sendCustomerEmail = async (req, res) => {
       emailInfo,
     });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    next({
+      status: 500,
+      message: err.message,
+  })
   }
 };
 
-const getEmailLogs = async (req, res) => {
+const getEmailLogs = async (req, res, next) => {
     try {
       const logs = await EmailLog.find({ sentBy: req.user.id });
       res.status(200).json(logs);
     } catch (err) {
-      res.status(500).json({ error: err.message });
+      next({
+        status: 500,
+        message: err.message,
+    })
     }
   };
   

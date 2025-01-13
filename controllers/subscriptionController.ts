@@ -1,7 +1,7 @@
 import dotenv from 'dotenv'
 import Stripe from 'stripe'
 import Subscription from '../models/Subscription';
-import User from '../models/User.js';
+import User from '../models/User';
 import { ObjectId } from 'mongodb';
 
 dotenv.config();
@@ -12,44 +12,71 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY,
     }
 );
 
-const subscribe = async (req, res) => {
-    const { userId, planId, paymentMethodId } = req.body;
-
+const subscribe = async (req, res, next) => {
+    let { planId, paymentMethodId } = req.body;
     try {
+        let planDetails: any = {};
+        let plan: any
+
+        if(planId == "basic"){
+            plan = process.env.STRIPE_BASIC_PRICE_ID
+        } else if(planId == "standard"){ 
+            plan = process.env.STRIPE_STANDARD_PRICE_ID
+        } else {
+            plan = process.env.STRIPE_PREMIUM_PRICE_ID
+        }
+
+        if (planId === "free") {
+            planDetails = { startDate: new Date(), autoRenew: false };
+        } else {
+            const startDate = new Date();
+            const endDate = new Date();
+            endDate.setDate(startDate.getDate() + 7); // Free trial period
+            planDetails = { startDate, endDate, autoRenew: true };
+        }
         // Create Stripe customer
         const customer = await stripe.customers.create({
             payment_method: paymentMethodId,
-            email: req.body.email,
+            email: req.user.email,
+            name: req.user.name,
             invoice_settings: { default_payment_method: paymentMethodId },
         });
 
         // Create subscription
         const subscription = await stripe.subscriptions.create({
             customer: customer.id,
-            items: [{ price: planId }],
+            items: [{ price: plan }],
             expand: ['latest_invoice.payment_intent'],
+            trial_period_days: 7,
         });
 
         // Save subscription to database
         await Subscription.create({
-            userId,
+            userId: req.user.id,
             stripeCustomerId: customer.id,
             stripeSubscriptionId: subscription.id,
-            planId
+            subscriptionPlan: planId,
+            planDetails: planDetails
         });
 
         //save stripe customer id
-        const user = await User.findById(userId);
+        const user = await User.findById(req.user.id);
         user.stripeCustomerId = customer.id;
+        user.planDetails = planDetails
+        user.subscriptionPlan = planId
         await user.save();
 
         res.status(200).json({ message: 'Subscribed successfully', subscription });
-    } catch (error) {
-        res.status(500).json({ message: error.message });
+    } catch (err) {
+        console.log(err.message)
+        next({
+            status: 500,
+            message: "There was an error subscribing",
+        })
     }
 };
 // Get Subscription Details
-const getSubscriptionDetails = async (req, res) => {
+const getSubscriptionDetails = async (req, res, next) => {
     try {
         const customerId = req.user.stripeCustomerId; // Assume we store this in the user model
         const subscriptions = await stripe.subscriptions.list({
@@ -74,13 +101,14 @@ const getSubscriptionDetails = async (req, res) => {
             stripeSubscriptionId: subscri?.stripeSubscriptionId,
             subscriptionItemId: subscription.items.data[0]?.id
         });
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: 'Unable to fetch subscription details' });
-    }
+    } catch (err) {
+        next({
+            status: 500,
+            message: err.message,
+        })    }
 };
 
-const updateSubscriptionPlan = async (req, res) => {
+const updateSubscriptionPlan = async (req, res, next) => {
     try {
         const { subscriptionId, newPlanId, subscriptionItemId } = req.body;
         console.log(subscriptionId, newPlanId, subscriptionItemId)
@@ -108,27 +136,29 @@ const updateSubscriptionPlan = async (req, res) => {
         }); 
 
         res.status(200).json({ message: 'Subscription updated', updatedSubscription });
-    } catch (error) {
-        console.error(error.message);
-        res.status(500).json({ message: 'Unable to update subscription' });
-    }
+    } catch (err) {
+        next({
+            status: 500,
+            message: err.message,
+        })  }
 };
 
 
-const cancelSubscription = async (req, res) => {
+const cancelSubscription = async (req, res, next) => {
     try {
         const subscriptionId = req.body.subscriptionId;
 
         const canceledSubscription = await stripe.subscriptions.cancel(subscriptionId);
 
         res.status(200).json({ message: 'Subscription canceled', canceledSubscription });
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: 'Unable to cancel subscription' });
-    }
+    } catch (err) {
+        next({
+            status: 500,
+            message: err.message,
+        })    }
 };
 
-const getBillingHistory = async (req, res) => {
+const getBillingHistory = async (req, res, next) => {
     try {
         const customerId = req.user.stripeCustomerId;
 
@@ -140,20 +170,24 @@ const getBillingHistory = async (req, res) => {
             date: new Date(charge.created * 1000),
             description: charge.description,
         })));
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: 'Unable to fetch billing history' });
-    }
+    } catch (err) {
+        next({
+            status: 500,
+            message: err.message,
+        })  }
 };
 
-const stripeWebhook = (req, res) => {
+const stripeWebhook = (req, res, next) => {
     const sig = req.headers['stripe-signature'];
     let event;
 
     try {
         event = stripe.webhooks.constructEvent(req.rawBody, sig, process.env.STRIPE_WEBHOOK_SECRET);
-    } catch (error) {
-        return res.status(400).send(`Webhook error: ${error.message}`);
+    } catch (err) {
+        next({
+            status: 400,
+            message: err.message,
+        })
     }
 
     switch (event.type) {
@@ -170,6 +204,4 @@ const stripeWebhook = (req, res) => {
     res.status(200).json({ received: true });
 };
 
-
-
-export default { subscribe, getSubscriptionDetails, cancelSubscription, updateSubscriptionPlan, getBillingHistory, stripeWebhook };
+export { subscribe, getSubscriptionDetails, cancelSubscription, updateSubscriptionPlan, getBillingHistory, stripeWebhook };
