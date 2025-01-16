@@ -3,6 +3,7 @@ import Note from "../models/Note";
 import Task from "../models/Task";
 import Contact from "../models/Contact"
 import ChatMessage from "../models/ChatMessage"
+import User from "../models/User";
 
 const createDeal = async (req, res, next) => {
   try {
@@ -36,9 +37,9 @@ const createDeal = async (req, res, next) => {
 const getDeals = async (req, res, next) => {
   try {
     const { id } = req.params
-    console.log(id)
+
     if (id !== undefined) {
-      const deal = await Deal.findById(id, "name value stage owner createdAt description expectedCloseDate probability");
+      const deal = await Deal.findById(id, "name value stage owner createdAt description expectedCloseDate probability assignee teamMembers");
       if (!deal) {
         return res.status(404).json({ message: "Deal not found" });
       }
@@ -47,13 +48,17 @@ const getDeals = async (req, res, next) => {
       const tasks = await Task.findOne({ dealId: id })
       const comments = await ChatMessage.findOne({ room: id })
       const owner = deal?.owner ? await Contact.findById(deal.owner, "name email phone") : null;
-     
-      return res.status(200).json({ 
+      const assignee = deal?.assignee ? await User.findById(deal.assignee, "name email phone") : null;
+      const teamMembers = deal?.teamMembers?.length > 0 ? await User.find({ _id: { $in: deal.teamMembers.map(member => member._id) } }, "name email phone") : [];
+
+      return res.status(200).json({
         ...deal.toObject(),  // Convert to plain object if it's a mongoose document 
-        owner, 
-        notes: notes?.notes || [], 
+        owner,
+        assignee,
+        notes: notes?.notes || [],
         tasks: tasks?.tasks || [],
-        comments: comments?.messages || [] 
+        teamMembers,
+        comments: comments?.messages || []
       });
     }
     const { stage } = req.query;
@@ -119,13 +124,15 @@ const assignUser = async (req, res, next) => {
   try {
     const { userId, dealId } = req.body;
 
-      await Deal.findOneAndUpdate(
-        { _id: dealId },
-        {
-            assignee: userId
-        }
-      );
-    
+    console.log(userId, dealId)
+
+    await Deal.findOneAndUpdate(
+      { _id: dealId },
+      {
+        assignee: userId
+      }
+    );
+
     res.status(200).json({ message: "Assigned user successfully" });
   } catch (err) {
     next({
@@ -135,4 +142,24 @@ const assignUser = async (req, res, next) => {
   }
 };
 
-export { createDeal, getDeals, updateDealStage, deleteDeal, assignUser };
+const assignTeamMembers = async (req, res, next) => {
+  try {
+    const { userId, dealId } = req.body;
+
+    const result = await Deal.findByIdAndUpdate(
+      {_id: dealId},
+      { $push: { teamMembers: userId } },
+      { new: true, runValidators: true }
+    );
+
+      res.status(200).json({ message: "Assigned user successfully", result });
+   
+  } catch (err) {
+    next({
+      status: 500,
+      message: err.message,
+    })
+  }
+};
+
+export { createDeal, getDeals, updateDealStage, deleteDeal, assignUser, assignTeamMembers };
